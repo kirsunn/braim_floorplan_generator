@@ -3,8 +3,10 @@
 
 Правила:
 - Минимальные площади: ванная 3 м², туалет 1.5 м², кухня 8 м², спальня 8 м², жилая 14 м², коридор 3 м².
-- Минимальные размеры: по 1.5–2.5 м для разных комнат.
+- Минимальные размеры: для всех комнат наименьшая сторона ≥ 1200 мм (1.2 м).
 - Ограничение пропорций: соотношение сторон не более 4:1.
+
+Важно: все размеры в модели указываются в мм (например, 1200, а не 1.2 м).
 """
 
 from dataclasses import dataclass
@@ -16,20 +18,25 @@ from .generator import Layout, Room
 class RoomRequirements:
     """Требования к комнате по типу."""
     type: str
-    min_area: float
-    min_width: float
-    min_height: float
+    min_area: float  # м²
+    min_dimension: float  # мм - наименьшая сторона комнаты
     max_aspect_ratio: float = 4.0
     
     @classmethod
     def get_defaults(cls) -> Dict[str, "RoomRequirements"]:
+        """
+        Требования по умолчанию.
+        
+        min_dimension - наименьшая сторона комнаты в мм.
+        Для всех типов комнат минимальная ширина прохода/доступа = 1200 мм.
+        """
         return {
-            "bathroom": cls(type="bathroom", min_area=3.0, min_width=1.5, min_height=2.0),
-            "toilet": cls(type="toilet", min_area=1.5, min_width=1.0, min_height=1.5),
-            "kitchen": cls(type="kitchen", min_area=8.0, min_width=2.0, min_height=2.5),
-            "bedroom": cls(type="bedroom", min_area=8.0, min_width=2.5, min_height=3.0),
-            "living": cls(type="living", min_area=14.0, min_width=3.0, min_height=3.5),
-            "hallway": cls(type="hallway", min_area=3.0, min_width=1.2, min_height=2.5),
+            "bathroom": cls(type="bathroom", min_area=3.0, min_dimension=1200),
+            "toilet": cls(type="toilet", min_area=1.5, min_dimension=1200),
+            "kitchen": cls(type="kitchen", min_area=8.0, min_dimension=1200),
+            "bedroom": cls(type="bedroom", min_area=8.0, min_dimension=1200),
+            "living": cls(type="living", min_area=14.0, min_dimension=1200),
+            "hallway": cls(type="hallway", min_area=3.0, min_dimension=1200),
         }
 
 
@@ -60,12 +67,22 @@ class ErgonomicsChecker:
         return issues
     
     def _check_room(self, room: Room) -> List[ErgonomicsIssue]:
+        """
+        Проверяет комнату на соответствие эргономическим нормам.
+        
+        Для всех комнат:
+        1. Площадь ≥ min_area
+        2. Наименьшая сторона ≥ min_dimension (1200 мм для всех типов)
+        3. Соотношение сторон ≤ max_aspect_ratio
+        """
         issues = []
         
         req = self.requirements.get(room.type)
         if req is None:
+            # Для неизвестных типов комнат проверка не выполняется
             return issues
         
+        # Проверка площади
         if room.area < req.min_area:
             issues.append(ErgonomicsIssue(
                 room_name=room.name,
@@ -76,26 +93,19 @@ class ErgonomicsChecker:
                 required_value=req.min_area,
             ))
         
-        if room.width < req.min_width:
+        # Проверка наименьшей стороны (в мм)
+        min_dim = min(room.width, room.height) * 1000  # конвертируем м → мм
+        if min_dim < req.min_dimension:
             issues.append(ErgonomicsIssue(
                 room_name=room.name,
                 room_type=room.type,
-                issue_type="min_width",
-                description=f"Ширина комнаты {room.name} ({room.type}) меньше минимальной",
-                actual_value=room.width,
-                required_value=req.min_width,
+                issue_type="min_dimension",
+                description=f"Наименьшая сторона комнаты {room.name} ({room.type}) меньше минимальной",
+                actual_value=min_dim,
+                required_value=req.min_dimension,
             ))
         
-        if room.height < req.min_height:
-            issues.append(ErgonomicsIssue(
-                room_name=room.name,
-                room_type=room.type,
-                issue_type="min_height",
-                description=f"Высота (глубина) комнаты {room.name} ({room.type}) меньше минимальной",
-                actual_value=room.height,
-                required_value=req.min_height,
-            ))
-        
+        # Проверка пропорций
         if room.aspect_ratio > req.max_aspect_ratio:
             issues.append(ErgonomicsIssue(
                 room_name=room.name,
@@ -120,6 +130,6 @@ class ErgonomicsChecker:
         lines = [f"✗ Найдено проблем: {len(issues)}"]
         for issue in issues:
             lines.append(f"  - {issue.room_name} ({issue.room_type}): {issue.description}")
-            lines.append(f"    Фактически: {issue.actual_value:.2f}, Требуется: {issue.required_value:.2f}")
+            lines.append(f"    Фактически: {issue.actual_value:.0f} мм, Требуется: {issue.required_value:.0f} мм")
         
         return "\n".join(lines)
