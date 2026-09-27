@@ -52,10 +52,10 @@ class TestErgonomicsChecker:
         assert issues[0].actual_value == 2.0
         assert issues[0].required_value == 3.0
     
-    def test_invalid_width(self):
+    def test_invalid_min_dimension_for_kitchen(self):
         layout = Layout(
             rooms=[
-                Room(type="kitchen", area=10.0, width=1.5, height=5.0, name="Kitchen1"),
+                Room(type="kitchen", area=10.0, width=1.1, height=5.0, name="Kitchen1"),
             ],
             apartment_area=10.0,
         )
@@ -64,14 +64,14 @@ class TestErgonomicsChecker:
         issues = checker.check(layout)
         
         assert len(issues) == 1
-        assert issues[0].issue_type == "min_width"
-        assert issues[0].actual_value == 1.5
-        assert issues[0].required_value == 2.0
+        assert issues[0].issue_type == "min_dimension"
+        assert issues[0].actual_value == 1100.0
+        assert issues[0].required_value == 1200
     
-    def test_invalid_height(self):
+    def test_invalid_min_dimension_for_bedroom(self):
         layout = Layout(
             rooms=[
-                Room(type="bedroom", area=12.0, width=6.0, height=1.5, name="Bed1"),
+                Room(type="bedroom", area=12.0, width=6.0, height=1.1, name="Bed1"),
             ],
             apartment_area=12.0,
         )
@@ -80,12 +80,14 @@ class TestErgonomicsChecker:
         issues = checker.check(layout)
         
         assert len(issues) == 1
-        assert issues[0].issue_type == "min_height"
+        assert issues[0].issue_type == "min_dimension"
+        assert issues[0].actual_value == 1100.0
+        assert issues[0].required_value == 1200
     
     def test_invalid_aspect_ratio(self):
         layout = Layout(
             rooms=[
-                Room(type="living", area=20.0, width=10.0, height=1.0, name="Living1"),
+                Room(type="living", area=20.0, width=5.1, height=1.25, name="Living1"),
             ],
             apartment_area=20.0,
         )
