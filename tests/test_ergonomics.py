@@ -73,65 +73,73 @@ class TestErgonomicsChecker:
         assert any(i.issue_type == "min_dimension" for i in issues)
         assert any(i.issue_type == "aspect_ratio" for i in issues)
 
-    def test_invalid_min_dimension_for_bedroom(self):
-        layout = Layout(
-            rooms=[
-                Room(type="bedroom", area=12.0, width=6.0, height=1.1, name="Bed1"),
-            ],
-            apartment_area=12.0,
-        )
+def test_invalid_min_dimension_for_living(self):
+    # 2.0 x 9.0 → min_dim=2.0 < 3.0, aspect_ratio=4.5 > 4.0
+    # Ожидаем 2 issues
+    layout = Layout(
+        rooms=[
+            Room(type="living", area=18.0, width=2.0, height=9.0, name="Living1"),
+        ],
+        apartment_area=18.0,
+    )
 
-        checker = ErgonomicsChecker()
-        issues = checker.check(layout)
+    checker = ErgonomicsChecker()
+    issues = checker.check(layout)
 
-        # Сейчас два нарушения: min dimension + aspect ratio
-        assert len(issues) == 2
-        assert any(i.issue_type == "min_dimension" for i in issues)
-        assert any(i.issue_type == "aspect_ratio" for i in issues)
+    assert len(issues) == 2
+    assert any(i.issue_type == "min_dimension" for i in issues)
+    assert any(i.issue_type == "aspect_ratio" for i in issues)
 
-    def test_invalid_aspect_ratio_only(self):
-        # Комната с нормальным min dimension, но плохим aspect ratio
-        layout = Layout(
-            rooms=[
-                Room(type="living", area=20.0, width=2.5, height=8.0, name="Living1"),
-            ],
-            apartment_area=20.0,
-        )
 
-        checker = ErgonomicsChecker()
-        issues = checker.check(layout)
+def test_invalid_aspect_ratio_only(self):
+    # Комната с НОРМАЛЬНЫМ min dimension, но aspect ratio > 4.0
+    # min_dim >= 3.0, например 3.0 x 13.0 → aspect_ratio=4.33 > 4.0
+    layout = Layout(
+        rooms=[
+            Room(type="living", area=39.0, width=3.0, height=13.0, name="Living1"),
+        ],
+        apartment_area=39.0,
+    )
 
-        # aspect_ratio = 8.0 / 2.5 = 3.2 < 4.0, нарушений нет
-        assert len(issues) == 0
+    checker = ErgonomicsChecker()
+    issues = checker.check(layout)
 
-    def test_invalid_aspect_ratio_extreme(self):
-        # Комната с нормальным min dimension, но aspect ratio > 4.0
-        layout = Layout(
-            rooms=[
-                Room(type="living", area=20.0, width=2.5, height=12.0, name="Living1"),
-            ],
-            apartment_area=20.0,
-        )
+    # aspect_ratio = 13.0 / 3.0 = 4.33 > 4.0, min_dim = 3.0 >= 3.0 OK
+    assert len(issues) == 1
+    assert issues[0].issue_type == "aspect_ratio"
 
-        checker = ErgonomicsChecker()
-        issues = checker.check(layout)
 
-        # aspect_ratio = 12.0 / 2.5 = 4.8 > 4.0
-        assert len(issues) == 1
-        assert issues[0].issue_type == "aspect_ratio"
+def test_invalid_aspect_ratio_extreme(self):
+    # Комната с НОРМАЛЬНЫМ min dimension, но aspect ratio > 4.0
+    # min_dim >= 3.0, например 3.0 x 15.0 → aspect_ratio=5.0 > 4.0
+    layout = Layout(
+        rooms=[
+            Room(type="living", area=45.0, width=3.0, height=15.0, name="Living1"),
+        ],
+        apartment_area=45.0,
+    )
 
-    def test_multiple_rooms_with_issues(self):
-        layout = Layout(
-            rooms=[
-                Room(type="living", area=18.0, width=2.0, height=9.0, name="Living1"),
-                Room(type="bedroom", area=12.0, width=6.0, height=1.1, name="Bed1"),
-            ],
-            apartment_area=30.0,
-        )
+    checker = ErgonomicsChecker()
+    issues = checker.check(layout)
 
-        checker = ErgonomicsChecker()
-        issues = checker.check(layout)
+    # aspect_ratio = 15.0 / 3.0 = 5.0 > 4.0, min_dim = 3.0 >= 3.0 OK
+    assert len(issues) == 1
+    assert issues[0].issue_type == "aspect_ratio"
 
-        # Living: 1 issue (min_dimension)
-        # Bedroom: 2 issues (min_dimension + aspect_ratio)
-        assert len(issues) == 3
+
+def test_multiple_rooms_with_issues(self):
+    # Living: 2.0 x 9.0 → 2 issues (min_dim + aspect_ratio)
+    # Bedroom: 6.0 x 1.1 → 2 issues (min_dim + aspect_ratio)
+    # Total: 4 issues
+    layout = Layout(
+        rooms=[
+            Room(type="living", area=18.0, width=2.0, height=9.0, name="Living1"),
+            Room(type="bedroom", area=12.0, width=6.0, height=1.1, name="Bed1"),
+        ],
+        apartment_area=30.0,
+    )
+
+    checker = ErgonomicsChecker()
+    issues = checker.check(layout)
+
+    assert len(issues) == 4
