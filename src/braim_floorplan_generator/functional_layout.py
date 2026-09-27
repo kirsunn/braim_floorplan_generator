@@ -23,12 +23,11 @@ from .generator import Room, Layout, Profile
 
 class ZoneType(Enum):
     """Тип функциональной зоны."""
-    ENTRANCE = "entrance"      # Входная зона
-    WET = "wet"                # Мокрая зона
-    LIVING = "living"          # Жилая зона
+    ENTRANCE = "entrance"
+    WET = "wet"
+    LIVING = "living"
 
 
-# Маппинг типов комнат в зоны
 ROOM_TO_ZONE = {
     "hallway": ZoneType.ENTRANCE,
     "toilet": ZoneType.ENTRANCE,
@@ -41,15 +40,6 @@ ROOM_TO_ZONE = {
 
 @dataclass
 class FunctionalZone:
-    """
-    Функциональная зона с комнатами.
-    
-    Attributes:
-        zone_type: Тип зоны
-        rooms: Список комнат в зоне
-        x, y: Координаты зоны (левый нижний угол)
-        width, height: Размеры зоны
-    """
     zone_type: ZoneType
     rooms: List[Room] = field(default_factory=list)
     x: float = 0.0
@@ -66,60 +56,32 @@ class FunctionalLayoutGenerator:
     """
     Генератор планировок с функциональным зонированием.
     
-    Алгоритм:
-    1. Группируем комнаты по зонам
-    2. Рассчитываем размеры зон
-    3. Размещаем зоны в периметре (вход → мокрая → жилая)
-    4. Внутри зон размещаем комнаты
-    5. Добавляем коридор для связи
+    Алгоритм плотной упаковки:
+    1. Сортируем комнаты по площади (убывание)
+    2. Раскладываем в сетку (grid)
+    3. Если не помещается — пробуем повернуть
+    4. Масштабируем под размер зоны
     """
     
     def __init__(self, profile: Profile, 
                  entrance_depth_mm: float = 2500,
                  wet_zone_depth_mm: float = 3500,
                  corridor_width_mm: float = 1200):
-        """
-        Args:
-            profile: Профиль квартиры
-            entrance_depth_mm: Глубина входной зоны (мм)
-            wet_zone_depth_mm: Глубина мокрой зоны (мм)
-            corridor_width_mm: Ширина коридора (мм)
-        """
         self.profile = profile
-        self.entrance_depth = entrance_depth_mm / 1000  # м
-        self.wet_zone_depth = wet_zone_depth_mm / 1000  # м
-        self.corridor_width = corridor_width_mm / 1000  # м
-        
+        self.entrance_depth = entrance_depth_mm / 1000
+        self.wet_zone_depth = wet_zone_depth_mm / 1000
+        self.corridor_width = corridor_width_mm / 1000
         self.zones: List[FunctionalZone] = []
     
     def generate(self, perimeter_width_mm: float, perimeter_height_mm: float) -> Layout:
-        """
-        Генерирует планировку с функциональным зонированием.
-        
-        Args:
-            perimeter_width_mm: Ширина периметра в мм
-            perimeter_height_mm: Высота периметра в мм
-        
-        Returns:
-            Layout с размещёнными комнатами
-        """
-        # Конвертируем в метры
         width_m = perimeter_width_mm / 1000
         height_m = perimeter_height_mm / 1000
         
-        # 1. Группировка по зонам
         self._group_rooms_by_zone()
-        
-        # 2. Расчёт размеров зон
         self._calculate_zone_sizes(width_m, height_m)
-        
-        # 3. Размещение зон
         self._place_zones(width_m, height_m)
+        rooms = self._place_rooms_in_zones_dense()
         
-        # 4. Размещение комнат внутри зон
-        rooms = self._place_rooms_in_zones()
-        
-        # 5. Добавляем коридор
         corridor = self._add_corridor(width_m, height_m)
         if corridor:
             rooms.append(corridor)
@@ -132,7 +94,6 @@ class FunctionalLayoutGenerator:
         )
     
     def _group_rooms_by_zone(self):
-        """Группирует комнаты из профиля по зонам."""
         zone_rooms = {
             ZoneType.ENTRANCE: [],
             ZoneType.WET: [],
@@ -143,7 +104,6 @@ class FunctionalLayoutGenerator:
             room_type = room_spec.get("type", "room")
             zone = ROOM_TO_ZONE.get(room_type, ZoneType.LIVING)
             
-            # Создаём комнату (размеры рассчитаем позже)
             min_area = room_spec.get("min_area", 5.0)
             preferred_area = room_spec.get("preferred_area", min_area * 1.2)
             
@@ -154,7 +114,6 @@ class FunctionalLayoutGenerator:
             )
             zone_rooms[zone].append(room)
         
-        # Создаём зоны
         self.zones = [
             FunctionalZone(zone_type=ZoneType.ENTRANCE, rooms=zone_rooms[ZoneType.ENTRANCE]),
             FunctionalZone(zone_type=ZoneType.WET, rooms=zone_rooms[ZoneType.WET]),
@@ -162,64 +121,38 @@ class FunctionalLayoutGenerator:
         ]
     
     def _calculate_zone_sizes(self, apartment_width: float, apartment_height: float):
-        """
-        Рассчитывает размеры зон.
-        
-        Стратегия:
-        - Входная зона: глубина фиксирована (entrance_depth), ширина = apartment_width
-        - Мокрая зона: глубина фиксирована (wet_zone_depth), ширина = apartment_width
-        - Жилая зона: остаток высоты
-        """
-        # Входная зона (внизу)
         entrance_zone = self.zones[0]
         entrance_zone.width = apartment_width
         entrance_zone.height = self.entrance_depth
         
-        # Мокрая зона (посередине)
         wet_zone = self.zones[1]
         wet_zone.width = apartment_width
         wet_zone.height = self.wet_zone_depth
         
-        # Жилая зона (вверху)
         living_zone = self.zones[2]
         living_zone.width = apartment_width
         living_zone.height = max(0, apartment_height - self.entrance_depth - self.wet_zone_depth - self.corridor_width)
     
     def _place_zones(self, apartment_width: float, apartment_height: float):
-        """
-        Размещает зоны в периметре.
-        
-        Схема:
-        ┌─────────────────────┐
-        │   Жилая зона        │  y = entrance + wet + corridor
-        ├─────────────────────┤
-        │   Коридор           │  y = entrance + wet
-        ├─────────────────────┤
-        │   Мокрая зона       │  y = entrance
-        ├─────────────────────┤
-        │   Входная зона      │  y = 0
-        └─────────────────────┘
-        """
-        # Входная зона (y=0)
         self.zones[0].x = 0
         self.zones[0].y = 0
         
-        # Мокрая зона
         self.zones[1].x = 0
         self.zones[1].y = self.entrance_depth
         
-        # Жилая зона
         self.zones[2].x = 0
         self.zones[2].y = self.entrance_depth + self.wet_zone_depth + self.corridor_width
     
-    def _place_rooms_in_zones(self) -> List[Room]:
+    def _place_rooms_in_zones_dense(self) -> List[Room]:
         """
-        Размещает комнаты внутри зон.
+        Плотная упаковка комнат в зоне (grid-алгоритм с вращением).
         
-        Алгоритм для каждой зоны:
+        Алгоритм:
         1. Сортируем комнаты по площади (убывание)
-        2. Рассчитываем размеры под зону
-        3. Раскладываем слева-направо с переносом
+        2. Рассчитываем grid (rows x cols) под зону
+        3. Размещаем комнаты в ячейках grid
+        4. Если не помещается — пробуем повернуть на 90°
+        5. Масштабируем под размер зоны
         """
         placed_rooms = []
         
@@ -230,61 +163,59 @@ class FunctionalLayoutGenerator:
             # Сортировка по площади
             sorted_rooms = sorted(zone.rooms, key=lambda r: r.area, reverse=True)
             
-            # Расчёт общей площади комнат в зоне
-            total_room_area = sum(r.area for r in sorted_rooms)
+            # Расчет grid
+            n_rooms = len(sorted_rooms)
+            cols = math.ceil(math.sqrt(n_rooms * zone.width / zone.height))
+            rows = math.ceil(n_rooms / cols)
             
-            # Если площадь комнат больше зоны — масштабируем
-            if total_room_area > zone.area:
-                scale = math.sqrt(zone.area / total_room_area)
-            else:
-                scale = 1.0
+            # Размер ячейки
+            cell_width = zone.width / cols
+            cell_height = zone.height / rows
             
-            # Размещение shelf-алгоритмом
-            x_offset = 0
-            y_offset = 0
-            row_height = 0
-            
-            for room in sorted_rooms:
-                # Расчёт размеров с масштабом
-                room_aspect = 1.2  # width/height
-                room_area_scaled = room.area * scale
-                
-                room_height = math.sqrt(room_area_scaled / room_aspect)
-                room_width = room_height * room_aspect
-                
-                # Проверка: если не помещается в строку — перенос
-                if x_offset + room_width > zone.width:
-                    x_offset = 0
-                    y_offset += row_height
-                    row_height = 0
-                
-                # Проверка: если не помещается по высоте — пропускаем
-                if y_offset + room_height > zone.height:
-                    print(f"Warning: Room {room.name} doesn't fit in zone {zone.zone_type.value}")
-                    continue
-                
-                # Размещение
-                room.x = zone.x + x_offset
-                room.y = zone.y + y_offset
-                room.width = room_width
-                room.height = room_height
-                
-                placed_rooms.append(room)
-                
-                x_offset += room_width
-                row_height = max(row_height, room_height)
+            # Размещение
+            room_idx = 0
+            for row in range(rows):
+                for col in range(cols):
+                    if room_idx >= len(sorted_rooms):
+                        break
+                    
+                    room = sorted_rooms[room_idx]
+                    
+                    # Расчет размеров комнаты
+                    room_aspect = 1.2
+                    room_height = math.sqrt(room.area / room_aspect)
+                    room_width = room_height * room_aspect
+                    
+                    # Проверка: помещается ли в ячейку
+                    fits_normal = room_width <= cell_width and room_height <= cell_height
+                    
+                    # Если не помещается — пробуем повернуть
+                    if not fits_normal:
+                        room_width, room_height = room_height, room_width
+                    
+                    # Масштабирование под ячейку
+                    scale_x = cell_width / room_width
+                    scale_y = cell_height / room_height
+                    scale = min(scale_x, scale_y, 1.5)  # Макс +50%
+                    
+                    room_width *= scale
+                    room_height *= scale
+                    
+                    # Координаты
+                    room.x = zone.x + col * cell_width
+                    room.y = zone.y + row * cell_height
+                    room.width = room_width
+                    room.height = room_height
+                    
+                    placed_rooms.append(room)
+                    room_idx += 1
         
         return placed_rooms
     
     def _add_corridor(self, apartment_width: float, apartment_height: float) -> Optional[Room]:
-        """
-        Добавляет коридор между зонами.
-        
-        Коридор идёт горизонтально между мокрой и жилой зоной.
-        """
         corridor_area = apartment_width * self.corridor_width
         
-        if corridor_area < 3.0:  # Минимальная площадь коридора
+        if corridor_area < 3.0:
             return None
         
         corridor = Room(
