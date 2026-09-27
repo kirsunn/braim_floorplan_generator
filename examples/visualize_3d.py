@@ -9,7 +9,6 @@
 """
 
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
@@ -22,49 +21,6 @@ def load_layout(filepath: str) -> dict:
     """Загружает планировку из JSON."""
     with open(filepath, "r", encoding="utf-8") as f:
         return json.load(f)
-
-
-def create_room_3d(x: float, y: float, width: float, height: float, 
-                   wall_height: float = 2.8) -> list:
-    """
-    Создаёт 3D-геометрию комнаты (стены).
-    
-    Args:
-        x, y: Координаты левого нижнего угла (м)
-        width, height: Размеры комнаты (м)
-        wall_height: Высота стен (м)
-    
-    Returns:
-        Список вершин для Poly3DCollection
-    """
-    # Вершины комнаты (8 углов)
-    vertices = [
-        # Пол (z=0)
-        (x, y, 0),
-        (x + width, y, 0),
-        (x + width, y + height, 0),
-        (x, y + height, 0),
-        # Потолок (z=wall_height)
-        (x, y, wall_height),
-        (x + width, y, wall_height),
-        (x + width, y + height, wall_height),
-        (x, y + height, wall_height),
-    ]
-    
-    # Грани (индексы вершин)
-    faces = [
-        # Пол
-        [0, 1, 2, 3],
-        # Потолок
-        [4, 5, 6, 7],
-        # Стены
-        [0, 1, 5, 4],  # Передняя
-        [2, 3, 7, 6],  # Задняя
-        [1, 2, 6, 5],  # Правая
-        [3, 0, 4, 7],  # Левая
-    ]
-    
-    return vertices, faces
 
 
 def visualize_3d(layout: dict, output_path: str = None, 
@@ -108,15 +64,15 @@ def visualize_3d(layout: dict, output_path: str = None,
         color = colors.get(room_type, "#CCCCCC")
         
         if show_floor:
-            # Пол комнаты
+            # Пол комнаты (используем Poly3DCollection для 3D)
             floor_verts = [
                 [x, y, 0],
                 [x + w, y, 0],
                 [x + w, y + h, 0],
                 [x, y + h, 0],
             ]
-            floor = patches.Polygon(floor_verts, facecolor=color, alpha=0.5)
-            ax.add_patch(floor)
+            floor_poly = Poly3DCollection([floor_verts], facecolor=color, alpha=0.5)
+            ax.add_collection3d(floor_poly)
         
         # Стены (линии)
         # Вертикальные линии по углам
@@ -145,18 +101,20 @@ def visualize_3d(layout: dict, output_path: str = None,
     height = apartment.get("height", 0)
     
     if width > 0 and height > 0:
-        # Пол
-        if show_floor:
-            apartment_floor = patches.Polygon(
-                [[0, 0], [width, 0], [width, height], [0, height]],
-                facecolor='none', edgecolor='black', linewidth=2
-            )
-            ax.add_patch(apartment_floor)
-        
         # Вертикальные линии по углам
         for corner_x, corner_y in [(0, 0), (width, 0), (width, height), (0, height)]:
             ax.plot([corner_x, corner_x], [corner_y, corner_y], 
-                   [0, wall_height + 0.5], color='black', linewidth=2)
+                   [0, wall_height + 0.5], color='red', linewidth=2)
+        
+        # Горизонтальные линии (верх)
+        top_edges = [
+            [(0, 0, wall_height + 0.5), (width, 0, wall_height + 0.5)],
+            [(width, 0, wall_height + 0.5), (width, height, wall_height + 0.5)],
+            [(width, height, wall_height + 0.5), (0, height, wall_height + 0.5)],
+            [(0, height, wall_height + 0.5), (0, 0, wall_height + 0.5)],
+        ]
+        for edge in top_edges:
+            ax.plot(*zip(*edge), color='red', linewidth=2)
     
     # Настройки
     ax.set_xlim(-1, width + 1)
