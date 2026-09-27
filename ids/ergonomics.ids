@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+  <info>
+    <title>BRAIM Ergonomics Rules</title>
+    <description>Минимальные требования к площадям комнат по эргономическим нормам</description>
+    <author>Kirill Shashchenko</author>
+    <date>2026-09-27</date>
+  </info>
+  <specifications>
+    <specification name="Min area for bathroom" ifcVersion="IFC4">
+      <entities>
+        <entity name="IfcSpace"/>
+      </entities>
+      <properties>
+        <propertySet name="Pset_SpaceCommon">
+          <property name="NetFloorArea" dataType="IfcAreaMeasure"/>
+        </propertySet>
+      </properties>
+      <requirements>
+        <requirement name="Bathroom min area">
+          <facet xsi:type="entityFacet">
+            <entity name="IfcSpace"/>
+          </facet>
+          <facet xsi:type="propertyFacet">
+            <propertySet name="Pset_SpaceCommon"/>
+            <property name="NetFloorArea"/>
+          </facet>
+          <facet xsi:type="classificationFacet">
+            <classification value="bathroom"/>
+          </facet>
+          <operator>GreaterThanOrEqual</operator>
+          <value>3.0</value>
+        </requirement>
+      </requirements>
+    </specification>
+    <specification name="Min area for toilet" ifcVersion="IFC4">
+      <entities>
+        <entity name="IfcSpace"/>
+      </entities>
+      <properties>
+        <propertySet name="Pset_SpaceCommon">
+          <property name="NetFloorArea" dataType="IfcAreaMeasure"/>
+        </propertySet>
+      </properties>
+      <requirements>
+        <requirement name="Toilet min area">
+          <facet xsi:type="entityFacet">
+            <entity name="IfcSpace"/>
+          </facet>
+          <facet xsi:type="propertyFacet">
+            <propertySet name="Pset_SpaceCommon"/>
+            <property name="NetFloorArea"/>
+          </facet>
+          <facet xsi:type="classificationFacet">
+            <classification value="toilet"/>
+          </facet>
+          <operator>GreaterThanOrEqual</operator>
+          <value>1.5</value>
+        </requirement>
+      </requirements>
+    </specification>
+    <specification name="Min area for kitchen" ifcVersion="IFC4">
+      <entities>
+        <entity name="IfcSpace"/>
+      </entities>
+      <properties>
+        <propertySet name="Pset_SpaceCommon">
+          <property name="NetFloorArea" dataType="IfcAreaMeasure"/>
+        </propertySet>
+      </properties>
+      <requirements>
+        <requirement name="Kitchen min area">
+          <facet xsi:type="entityFacet">
+            <entity name="IfcSpace"/>
+          </facet>
+          <facet xsi:type="propertyFacet">
+            <propertySet name="Pset_SpaceCommon"/>
+            <property name="NetFloorArea"/>
+          </facet>
+          <facet xsi:type="classificationFacet">
+            <classification value="kitchen"/>
+          </facet>
+          <operator>GreaterThanOrEqual</operator>
+          <value>8.0</value>
+        </requirement>
+      </requirements>
+    </specification>
+    <specification name="Min area for bedroom" ifcVersion="IFC4">
+      <entities>
+        <entity name="IfcSpace"/>
+      </entities>
+      <properties>
+        <propertySet name="Pset_SpaceCommon">
+          <property name="NetFloorArea" dataType="IfcAreaMeasure"/>
+        </propertySet>
+      </properties>
+      <requirements>
+        <requirement name="Bedroom min area">
+          <facet xsi:type="entityFacet">
+            <entity name="IfcSpace"/>
+          </facet>
+          <facet xsi:type="propertyFacet">
+            <propertySet name="Pset_SpaceCommon"/>
+            <property name="NetFloorArea"/>
+          </facet>
+          <facet xsi:type="classificationFacet">
+            <classification value="bedroom"/>
+          </facet>
+          <operator>GreaterThanOrEqual</operator>
+          <value>8.0</value>
+        </requirement>
+      </requirements>
+    </specification>
+    <specification name="Min area for living" ifcVersion="IFC4">
+      <entities>
+        <entity name="IfcSpace"/>
+      </entities>
+      <properties>
+        <propertySet name="Pset_SpaceCommon">
+          <property name="NetFloorArea" dataType="IfcAreaMeasure"/>
+        </propertySet>
+      </properties>
+      <requirements>
+        <requirement name="Living min area">
+          <facet xsi:type="entityFacet">
+            <entity name="IfcSpace"/>
+          </facet>
+          <facet xsi:type="propertyFacet">
+            <propertySet name="Pset_SpaceCommon"/>
+            <property name="NetFloorArea"/>
+          </facet>
+          <facet xsi:type="classificationFacet">
+            <classification value="living"/>
+          </facet>
+          <operator>GreaterThanOrEqual</operator>
+          <value>14.0</value>
+        </requirement>
+      </requirements>
+    </specification>
+    <specification name="Min area for hallway" ifcVersion="IFC4">
+      <entities>
+        <entity name="IfcSpace"/>
+      </entities>
+      <properties>
+        <propertySet name="Pset_SpaceCommon">
+          <property name="NetFloorArea" dataType="IfcAreaMeasure"/>
+        </propertySet>
+      </properties>
+      <requirements>
+        <requirement name="Hallway min area">
+          <facet xsi:type="entityFacet">
+            <entity name="IfcSpace"/>
+          </facet>
+          <facet xsi:type="propertyFacet">
+            <propertySet name="Pset_SpaceCommon"/>
+            <property name="NetFloorArea"/>
+          </facet>
+          <facet xsi:type="classificationFacet">
+            <classification value="hallway"/>
+          </facet>
+          <operator>GreaterThanOrEqual</operator>
+          <value>3.0</value>
+        </requirement>
+      </requirements>
+    </specification>
+  </specifications>
+</ids>
