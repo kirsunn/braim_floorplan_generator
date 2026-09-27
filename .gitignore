@@ -33,16 +33,19 @@ env/
 *.swo
 *~
 
-# Output
+# Generated output
 output/
 *.ifc
 *.svg
-*.json
+*.png
 
 # Testing
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Streamlit
+.streamlit/
 
 # OS
 .DS_Store
