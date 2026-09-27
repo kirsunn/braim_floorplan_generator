@@ -83,3 +83,17 @@ class ErgonomicsChecker:
     def _get_min_dimension(self, room_type: str) -> float:
         """Get minimum dimension for a room type."""
         return self.MIN_DIMENSIONS.get(room_type, 2.0)
+
+
+class PlanValidator:
+    """Stub PlanValidator for backward compatibility.
+
+    This class is deprecated. Use the new validation engine instead.
+    """
+
+    def validate(self, *args, **kwargs):
+        """Stub validation method."""
+        raise NotImplementedError(
+            "PlanValidator is deprecated. "
+            "Use the new validation engine in src.braim_floorplan_generator.validation."
+        )
