@@ -183,7 +183,7 @@ class FunctionalLayoutGenerator:
         # Жилая зона (вверху)
         living_zone = self.zones[2]
         living_zone.width = apartment_width
-        living_zone.height = apartment_height - self.entrance_depth - self.wet_zone_depth - self.corridor_width
+        living_zone.height = max(0, apartment_height - self.entrance_depth - self.wet_zone_depth - self.corridor_width)
     
     def _place_zones(self, apartment_width: float, apartment_height: float):
         """
@@ -218,8 +218,8 @@ class FunctionalLayoutGenerator:
         
         Алгоритм для каждой зоны:
         1. Сортируем комнаты по площади (убывание)
-        2. Раскладываем слева-направо
-        3. Масштабируем под размеры зоны
+        2. Рассчитываем размеры под зону
+        3. Раскладываем слева-направо с переносом
         """
         placed_rooms = []
         
@@ -233,27 +233,35 @@ class FunctionalLayoutGenerator:
             # Расчёт общей площади комнат в зоне
             total_room_area = sum(r.area for r in sorted_rooms)
             
-            # Масштабирование под зону
-            if total_room_area > 0:
-                scale = math.sqrt((zone.width * zone.height) / total_room_area)
+            # Если площадь комнат больше зоны — масштабируем
+            if total_room_area > zone.area:
+                scale = math.sqrt(zone.area / total_room_area)
             else:
                 scale = 1.0
             
-            # Размещение
+            # Размещение shelf-алгоритмом
             x_offset = 0
             y_offset = 0
             row_height = 0
             
             for room in sorted_rooms:
-                # Расчёт размеров
-                room_width = math.sqrt(room.area * scale * 1.2)  # aspect_ratio ~1.2
-                room_height = room_width / 1.2
+                # Расчёт размеров с масштабом
+                room_aspect = 1.2  # width/height
+                room_area_scaled = room.area * scale
+                
+                room_height = math.sqrt(room_area_scaled / room_aspect)
+                room_width = room_height * room_aspect
                 
                 # Проверка: если не помещается в строку — перенос
                 if x_offset + room_width > zone.width:
                     x_offset = 0
                     y_offset += row_height
                     row_height = 0
+                
+                # Проверка: если не помещается по высоте — пропускаем
+                if y_offset + room_height > zone.height:
+                    print(f"Warning: Room {room.name} doesn't fit in zone {zone.zone_type.value}")
+                    continue
                 
                 # Размещение
                 room.x = zone.x + x_offset
