@@ -1,0 +1,63 @@
+{
+  "name": "2-room linear apartment",
+  "description": "Линейная планировка 2-комнатной квартиры",
+  "perimeter": {
+    "type": "rectangle",
+    "width_mm": 10000,
+    "height_mm": 7000
+  },
+  "functional_scheme": "linear",
+  "zones": {
+    "entrance": {
+      "position": "bottom",
+      "depth_mm": 2000
+    },
+    "wet": {
+      "position": "middle",
+      "depth_mm": 2500,
+      "adjacent_to": ["entrance"]
+    },
+    "living": {
+      "position": "top",
+      "quiet": true
+    }
+  },
+  "rooms": [
+    {
+      "type": "toilet",
+      "min_area": 1.5,
+      "preferred_area": 2.0,
+      "zone": "entrance"
+    },
+    {
+      "type": "bathroom",
+      "min_area": 3.0,
+      "preferred_area": 4.0,
+      "zone": "wet"
+    },
+    {
+      "type": "kitchen",
+      "min_area": 8.0,
+      "preferred_area": 10.0,
+      "zone": "wet"
+    },
+    {
+      "type": "living",
+      "min_area": 14.0,
+      "preferred_area": 18.0,
+      "zone": "living"
+    },
+    {
+      "type": "bedroom",
+      "min_area": 8.0,
+      "preferred_area": 12.0,
+      "zone": "living"
+    }
+  ],
+  "constraints": {
+    "min_corridor_width_mm": 1200,
+    "kitchen_near_bathroom": true,
+    "bedroom_quiet_zone": true,
+    "max_aspect_ratio": 4.0
+  }
+}
