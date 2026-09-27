@@ -1,0 +1,7 @@
+archit-app[ifc]>=0.1.0
+ifcopenshell>=0.7.0
+ifctester>=0.7.0
+pytest>=7.0.0
+pytest-mock>=3.10.0
+click>=8.0.0
+jsonschema>=4.0.0
