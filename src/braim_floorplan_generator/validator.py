@@ -1,169 +1,85 @@
-"""
-IDS-валидация планировки.
+"""Legacy validator module for ergonomics checks.
 
-Класс PlanValidator позволяет:
-- Добавлять правила вида «комната X должна иметь NetFloorArea ≥ Y»
-- validate_ifc() возвращает сводку (pass/fail)
-- export_bcf() — выгрузку замечаний в формате BCF
+This module is kept for backward compatibility with existing tests.
+New validation logic should use the validation engine in src.braim_floorplan_generator.validation.
 """
 
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
-import ifctester
-import ifctester.ids
-from .generator import Layout
+from typing import List, Literal
+
+from .functional_layout import Layout, Room
 
 
 @dataclass
-class ValidationReport:
-    """Отчёт о валидации."""
-    passed: bool
-    total_rules: int
-    passed_rules: int
-    failed_rules: int
-    issues: List[Dict[str, Any]]
-    
-    def summary(self) -> str:
-        status = "✓ PASS" if self.passed else "✗ FAIL"
-        return f"{status}: {self.passed_rules}/{self.total_rules} правил пройдено"
-    
-    def to_dict(self) -> Dict:
-        return {
-            "passed": self.passed,
-            "total_rules": self.total_rules,
-            "passed_rules": self.passed_rules,
-            "failed_rules": self.failed_rules,
-            "issues": self.issues,
-        }
+class ErgonomicsIssue:
+    """Represents an ergonomics issue found during layout validation."""
+    room_name: str
+    room_type: str
+    issue_type: Literal["min_dimension", "aspect_ratio"]
+    description: str
+    actual_value: float
+    required_value: float
 
 
-class PlanValidator:
-    """Валидатор планировок через IDS."""
-    
-    def __init__(self):
-        self.rules = []
-    
-    def add_rule(self, rule: Dict[str, Any]) -> None:
-        self.rules.append(rule)
-    
-    def validate_layout(self, layout: Layout) -> ValidationReport:
+class ErgonomicsChecker:
+    """Legacy ergonomics checker for simple room layouts.
+
+    Checks:
+    - Minimum dimension for each room type.
+    - Maximum aspect ratio (default 4.0).
+    """
+
+    # Minimum dimensions in meters by room type
+    MIN_DIMENSIONS = {
+        "living": 3.0,
+        "bedroom": 3.0,
+        "kitchen": 2.0,
+        "bathroom": 1.8,
+        "hallway": 1.2,
+    }
+
+    # Maximum aspect ratio (length / width)
+    MAX_ASPECT_RATIO = 4.0
+
+    def check(self, layout: Layout) -> List[ErgonomicsIssue]:
+        """Check a layout for ergonomics issues.
+
+        Args:
+            layout: The layout to check.
+
+        Returns:
+            A list of ergonomics issues found.
+        """
         issues = []
-        passed_rules = 0
-        
-        for rule in self.rules:
-            rule_passed = self._check_rule(layout, rule)
-            
-            if rule_passed:
-                passed_rules += 1
-            else:
-                issues.append({
-                    "rule": rule.get("name", "Unnamed rule"),
-                    "description": f"Rule failed: {rule}",
-                })
-        
-        total_rules = len(self.rules)
-        failed_rules = total_rules - passed_rules
-        
-        return ValidationReport(
-            passed=(failed_rules == 0),
-            total_rules=total_rules,
-            passed_rules=passed_rules,
-            failed_rules=failed_rules,
-            issues=issues,
-        )
-    
-    def _check_rule(self, layout: Layout, rule: Dict[str, Any]) -> bool:
-        entity = rule.get("entity", "IfcSpace")
-        prop = rule.get("property", "")
-        operator = rule.get("operator", ">=")
-        value = rule.get("value", 0.0)
-        filter_spec = rule.get("filter", {})
-        
-        if entity != "IfcSpace":
-            return True
-        
-        filter_type = filter_spec.get("type")
-        
+
         for room in layout.rooms:
-            if filter_type and room.type != filter_type:
-                continue
-            
-            if prop == "Pset_SpaceCommon.NetFloorArea":
-                actual_value = room.area
-            else:
-                continue
-            
-            if operator == ">=":
-                if actual_value < value:
-                    return False
-            elif operator == ">":
-                if actual_value <= value:
-                    return False
-            elif operator == "<=":
-                if actual_value > value:
-                    return False
-            elif operator == "<":
-                if actual_value >= value:
-                    return False
-            elif operator == "==":
-                if actual_value != value:
-                    return False
-        
-        return True
-    
-    def validate_ifc(self, ifc_filepath: str, ids_filepath: str) -> ValidationReport:
-        ids_file = ifctester.ids.open(ids_filepath)
-        
-        import ifcopenshell
-        ifc_file = ifcopenshell.open(ifc_filepath)
-        
-        results = ifctester.validate(ids_file, ifc_file)
-        
-        total_rules = len(ids_file.specifications)
-        passed_rules = sum(1 for spec in ids_file.specifications if spec.id in results and results[spec.id].passing)
-        failed_rules = total_rules - passed_rules
-        
-        issues = []
-        for spec in ids_file.specifications:
-            if spec.id in results and not results[spec.id].passing:
-                for fail in results[spec.id].fails:
-                    issues.append({
-                        "rule": spec.name or spec.id,
-                        "element": str(fail.element),
-                        "description": fail.reason,
-                    })
-        
-        return ValidationReport(
-            passed=(failed_rules == 0),
-            total_rules=total_rules,
-            passed_rules=passed_rules,
-            failed_rules=failed_rules,
-            issues=issues,
-        )
-    
-    def export_bcf(self, report: ValidationReport, filepath: str) -> None:
-        bcf_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Markup>
-  <Header>
-    <Project>
-      <Name>BRAIM Floorplan Validation</Name>
-    </Project>
-  </Header>
-  <Topic>
-    <Title>Floorplan Validation Report</Title>
-    <Status>Active</Status>
-  </Topic>
-"""
-        
-        for i, issue in enumerate(report.issues, 1):
-            bcf_content += f"""  <Comment>
-    <Date>2026-09-27T12:00:00</Date>
-    <Comment>Issue {i}: {issue.get('rule', 'Unknown rule')}</Comment>
-    <Status>Active</Status>
-  </Comment>
-"""
-        
-        bcf_content += "</Markup>"
-        
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(bcf_content)
+            # Check minimum dimension
+            min_dim = self._get_min_dimension(room.type)
+            actual_min = min(room.width, room.height)
+            if actual_min < min_dim:
+                issues.append(ErgonomicsIssue(
+                    room_name=room.name,
+                    room_type=room.type,
+                    issue_type="min_dimension",
+                    description=f"Наименьшая сторона комнаты {room.name} ({room.type}) меньше требуемого минимума",
+                    actual_value=actual_min,
+                    required_value=min_dim,
+                ))
+
+            # Check aspect ratio
+            aspect_ratio = max(room.width, room.height) / min(room.width, room.height)
+            if aspect_ratio > self.MAX_ASPECT_RATIO:
+                issues.append(ErgonomicsIssue(
+                    room_name=room.name,
+                    room_type=room.type,
+                    issue_type="aspect_ratio",
+                    description=f"Соотношение сторон комнаты {room.name} ({room.type}) превышает максимальное",
+                    actual_value=aspect_ratio,
+                    required_value=self.MAX_ASPECT_RATIO,
+                ))
+
+        return issues
+
+    def _get_min_dimension(self, room_type: str) -> float:
+        """Get minimum dimension for a room type."""
+        return self.MIN_DIMENSIONS.get(room_type, 2.0)
